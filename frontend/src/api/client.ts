@@ -6,6 +6,16 @@ export const apiClient = axios.create({
   headers: { Accept: 'application/json' },
 })
 
+export const FORBIDDEN_EVENT = 'family-finance:forbidden'
+
+apiClient.interceptors.response.use(
+  (response: unknown) => response,
+  (error: unknown) => {
+    if (errorStatus(error) === 403 && typeof window !== 'undefined') window.dispatchEvent(new Event(FORBIDDEN_EVENT))
+    return Promise.reject(error)
+  },
+)
+
 let csrfToken = ''
 
 export function setCsrfToken(token: string) {

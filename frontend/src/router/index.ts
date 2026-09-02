@@ -11,6 +11,7 @@ import MembersView from '../views/MembersView.vue'
 import CategoriesView from '../views/CategoriesView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
+import ForbiddenView from '../views/ForbiddenView.vue'
 
 export const appRoutes: RouteRecordRaw[] = [
   { path: '/login', component: LoginView, meta: { public: true } },
@@ -21,6 +22,7 @@ export const appRoutes: RouteRecordRaw[] = [
   { path: '/members', component: MembersView, meta: { auth: true, household: true } },
   { path: '/categories', component: CategoriesView, meta: { auth: true, household: true } },
   { path: '/profile', component: ProfileView, meta: { auth: true, household: true } },
+  { path: '/forbidden', component: ForbiddenView, meta: { auth: true, household: true } },
 ]
 
 const router = createRouter({

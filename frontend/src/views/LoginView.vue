@@ -8,6 +8,7 @@ import { errorMessage } from '../api/client'
 const router = useRouter(), route = useRoute(), auth = useAuthStore()
 const form = reactive({ username: '', password: '' })
 const loading = ref(false), error = ref('')
+const passwordChanged = route.query.passwordChanged === '1'
 async function submit() {
   error.value = ''
   if (!form.username || !form.password) { error.value = '请输入用户名和密码'; return }
@@ -24,6 +25,7 @@ async function submit() {
     <form class="form-stack" @submit.prevent="submit">
       <div class="field"><label for="login-username">用户名</label><el-input id="login-username" v-model="form.username" placeholder="输入用户名" autocomplete="username" size="large" /></div>
       <div class="field"><div class="field-label"><label for="login-password">密码</label><RouterLink to="/register">还没有账号？</RouterLink></div><el-input id="login-password" v-model="form.password" type="password" show-password placeholder="输入密码" autocomplete="current-password" size="large" /></div>
+      <p v-if="passwordChanged" class="form-success" role="status">密码已修改，请使用新密码重新登录。</p>
       <p v-if="error" class="form-error" role="alert">{{ error }}</p>
       <button class="primary-button full" type="submit" :disabled="loading">{{ loading ? '正在登录…' : '登录家账' }}</button>
       <p class="form-hint">登录即表示你同意仅在家庭范围内使用本系统。</p>
