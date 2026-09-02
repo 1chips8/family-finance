@@ -1,0 +1,9 @@
+spring:
+  config:
+    activate:
+      on-profile: demo
+
+app:
+  demo:
+    enabled: true
+    password: ${DEMO_PASSWORD:Demo1234}

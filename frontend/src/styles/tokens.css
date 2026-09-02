@@ -1,0 +1,17 @@
+:root {
+  --color-brand: #466bf5;
+  --color-brand-soft: #e9edff;
+  --color-ink: #0a102e;
+  --color-muted: #69718c;
+  --color-page: #f2f4f8;
+  --color-surface: #ffffff;
+  --color-income: #20a66a;
+  --color-expense: #ed6a5a;
+  --color-border: #e6e9f0;
+  --radius-shell: 30px;
+  --radius-card: 18px;
+  --radius-control: 12px;
+  --motion-fast: 180ms;
+  --motion-normal: 220ms;
+  --font-sans: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
