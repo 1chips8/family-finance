@@ -2,6 +2,7 @@ package com.family.finance.ledger.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.family.finance.audit.service.AuditLogService;
 import com.family.finance.auth.domain.AppUser;
 import com.family.finance.auth.domain.UserStatus;
 import com.family.finance.auth.mapper.AppUserMapper;
@@ -35,14 +36,17 @@ public class LedgerService {
     private final CategoryMapper categoryMapper;
     private final CategoryService categoryService;
     private final CurrentUserService currentUserService;
+    private final AuditLogService auditLogService;
 
     public LedgerService(LedgerEntryMapper entryMapper, AppUserMapper userMapper, CategoryMapper categoryMapper,
-                         CategoryService categoryService, CurrentUserService currentUserService) {
+                         CategoryService categoryService, CurrentUserService currentUserService,
+                         AuditLogService auditLogService) {
         this.entryMapper = entryMapper;
         this.userMapper = userMapper;
         this.categoryMapper = categoryMapper;
         this.categoryService = categoryService;
         this.currentUserService = currentUserService;
+        this.auditLogService = auditLogService;
     }
 
     public EntryPageResponse list(EntryQuery input) {
@@ -72,6 +76,14 @@ public class LedgerService {
     @Transactional
     public EntryResponse create(CreateEntryRequest request) {
         CurrentUser user = currentUserService.requireHouseholdUser();
+        EntryResponse response = createImported(user, request);
+        auditLogService.record(user, "ENTRY_CREATE", "ENTRY", response.id(),
+                "新增" + (response.type() == com.family.finance.ledger.domain.LedgerType.INCOME ? "收入" : "支出")
+                        + "流水 ¥" + response.amount());
+        return response;
+    }
+
+    public EntryResponse createImported(CurrentUser user, CreateEntryRequest request) {
         AppUser member = resolveMember(request.memberId(), user, true);
         FinanceCategory category = categoryService.requireUsable(request.categoryId(), user.householdId(),
                 com.family.finance.category.domain.CategoryType.valueOf(request.type().name()), false);
@@ -105,7 +117,10 @@ public class LedgerService {
         entry.setOccurredOn(request.occurredOn());
         entry.setNote(cleanNote(request.note()));
         entryMapper.updateById(entry);
-        return response(entry, member, category);
+        EntryResponse response = response(entry, member, category);
+        auditLogService.record(user, "ENTRY_UPDATE", "ENTRY", entry.getId(),
+                "修改流水 ¥" + entry.getAmount());
+        return response;
     }
 
     @Transactional
@@ -113,6 +128,8 @@ public class LedgerService {
         CurrentUser user = currentUserService.requireHouseholdUser();
         LedgerEntry entry = target(id, user);
         entryMapper.deleteById(entry.getId());
+        auditLogService.record(user, "ENTRY_DELETE", "ENTRY", entry.getId(),
+                "删除流水 ¥" + entry.getAmount());
     }
 
     private LedgerEntry target(Long id, CurrentUser user) {

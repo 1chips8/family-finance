@@ -1,17 +1,21 @@
 :root {
-  --color-brand: #466bf5;
-  --color-brand-soft: #e9edff;
-  --color-ink: #0a102e;
-  --color-muted: #69718c;
-  --color-page: #f2f4f8;
-  --color-surface: #ffffff;
-  --color-income: #20a66a;
-  --color-expense: #ed6a5a;
-  --color-border: #e6e9f0;
-  --radius-shell: 30px;
-  --radius-card: 18px;
-  --radius-control: 12px;
+  --color-brand: #174b9c;
+  --color-brand-soft: #e8eef8;
+  --color-ink: #171614;
+  --color-muted: #5f5a53;
+  --color-page: #f4f0e8;
+  --color-surface: #fffdf8;
+  --color-income: #277a65;
+  --color-expense: #b8402f;
+  --color-bamboo: #277a65;
+  --color-cinnabar: #b8402f;
+  --color-ultramarine: #174b9c;
+  --color-border: #d8d0c4;
+  --radius-shell: 0;
+  --radius-card: 4px;
+  --radius-control: 3px;
   --motion-fast: 180ms;
   --motion-normal: 220ms;
-  --font-sans: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-display: Georgia, "Songti SC", "STSong", serif;
 }

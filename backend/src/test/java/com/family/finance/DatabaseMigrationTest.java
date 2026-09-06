@@ -41,7 +41,7 @@ class DatabaseMigrationTest {
                     .locations("classpath:db/migration")
                     .load();
             flyway.clean();
-            assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+            assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
             assertThat(flyway.migrate().migrationsExecuted).isZero();
 
             try (Connection connection = DriverManager.getConnection(url, username, password);
@@ -51,7 +51,8 @@ class DatabaseMigrationTest {
                                  "WHERE table_schema = DATABASE()")) {
                 Set<String> tables = new HashSet<>();
                 while (resultSet.next()) tables.add(resultSet.getString(1));
-                assertThat(tables).contains("household", "app_user", "finance_category", "ledger_entry");
+                assertThat(tables).contains("household", "app_user", "finance_category", "ledger_entry",
+                        "monthly_budget", "recurring_template", "recurring_generation", "audit_log");
             }
         } finally {
             if (container != null) container.stop();

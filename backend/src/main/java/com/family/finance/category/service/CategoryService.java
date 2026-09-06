@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.family.finance.category.domain.*;
 import com.family.finance.category.dto.*;
 import com.family.finance.category.mapper.CategoryMapper;
+import com.family.finance.audit.service.AuditLogService;
 import com.family.finance.common.error.ApiException;
 import com.family.finance.common.security.CurrentUser;
 import com.family.finance.common.security.CurrentUserService;
@@ -18,10 +19,13 @@ import java.util.List;
 public class CategoryService {
     private final CategoryMapper categoryMapper;
     private final CurrentUserService currentUserService;
+    private final AuditLogService auditLogService;
 
-    public CategoryService(CategoryMapper categoryMapper, CurrentUserService currentUserService) {
+    public CategoryService(CategoryMapper categoryMapper, CurrentUserService currentUserService,
+                           AuditLogService auditLogService) {
         this.categoryMapper = categoryMapper;
         this.currentUserService = currentUserService;
+        this.auditLogService = auditLogService;
     }
 
     public List<CategoryResponse> list(boolean includeInactive) {
@@ -44,6 +48,8 @@ public class CategoryService {
         category.setName(request.name().trim());
         category.setStatus(CategoryStatus.ACTIVE);
         categoryMapper.insert(category);
+        auditLogService.record(user, "CATEGORY_CREATE", "CATEGORY", category.getId(),
+                "新增" + (category.getType() == CategoryType.INCOME ? "收入" : "支出") + "分类 " + category.getName());
         return CategoryResponse.from(category);
     }
 
@@ -53,6 +59,8 @@ public class CategoryService {
         FinanceCategory category = customCategory(id, user.householdId());
         category.setName(request.name().trim());
         categoryMapper.updateById(category);
+        auditLogService.record(user, "CATEGORY_UPDATE", "CATEGORY", category.getId(),
+                "修改分类为 " + category.getName());
         return CategoryResponse.from(category);
     }
 
@@ -62,6 +70,8 @@ public class CategoryService {
         FinanceCategory category = customCategory(id, user.householdId());
         category.setStatus(request.active() ? CategoryStatus.ACTIVE : CategoryStatus.INACTIVE);
         categoryMapper.updateById(category);
+        auditLogService.record(user, "CATEGORY_STATUS", "CATEGORY", category.getId(),
+                (request.active() ? "恢复分类 " : "停用分类 ") + category.getName());
         return CategoryResponse.from(category);
     }
 

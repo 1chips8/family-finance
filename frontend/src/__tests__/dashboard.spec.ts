@@ -4,12 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DashboardView from '../views/DashboardView.vue'
 import { statisticsApi } from '../api/statistics'
 import { useAuthStore } from '../stores/auth'
+import type { Dashboard } from '../types/domain'
 
 vi.mock('../api/statistics', () => ({ statisticsApi: { dashboard: vi.fn() } }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('element-plus', () => ({ ElMessage: { warning: vi.fn(), error: vi.fn(), success: vi.fn() } }))
 
-const dashboard = {
+const dashboard: Dashboard = {
   from: '2026-09-01',
   to: '2026-09-02',
   totals: { income: '1000.00', expense: '300.00', balance: '700.00' },
@@ -22,8 +23,8 @@ const dashboard = {
   recentEntries: [],
 }
 
-async function mountView() {
-  vi.mocked(statisticsApi.dashboard).mockResolvedValue(dashboard)
+async function mountView(data = dashboard) {
+  vi.mocked(statisticsApi.dashboard).mockResolvedValue(data)
   const auth = useAuthStore()
   auth.setUser({ id: 1, username: 'parent', displayName: '小林', memberNo: 'M001', role: 'PARENT', status: 'ACTIVE', hasHousehold: true, household: { id: 1, name: '小林一家' } })
   const wrapper = mount(DashboardView, { global: { stubs: { TrendChart: { template: '<div />' } } } })
@@ -98,5 +99,17 @@ describe('dashboard controls and comparisons', () => {
     expect(wrapper.text()).toContain('+¥100.00')
     expect(wrapper.text()).toContain('-¥30.00')
     expect(wrapper.text()).toContain('¥70.00')
+  })
+
+  it('renders ratio fields as percentages even when they exceed one', async () => {
+    const wrapper = await mountView({
+      ...dashboard,
+      comparison: { income: 1500, expense: 450, balance: 1050, incomeChangeRate: 1.5, expenseChangeRate: 1.5, balanceChangeRate: 1.5 },
+      savingsRate: 0.25,
+      budget: { month: '2026-09', total: { budget: 200, spent: 300, remaining: -100, usageRate: 1.5, status: 'OVER' as const }, categories: [] },
+    })
+
+    expect(wrapper.text()).toContain('150.0%')
+    expect(wrapper.text()).toContain('25.0% 储蓄率')
   })
 })

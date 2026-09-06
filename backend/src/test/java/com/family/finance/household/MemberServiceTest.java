@@ -4,10 +4,12 @@ import com.family.finance.auth.domain.AppUser;
 import com.family.finance.auth.domain.Role;
 import com.family.finance.auth.domain.UserStatus;
 import com.family.finance.auth.mapper.AppUserMapper;
+import com.family.finance.audit.service.AuditLogService;
 import com.family.finance.common.error.ApiException;
 import com.family.finance.common.security.CurrentUser;
 import com.family.finance.common.security.CurrentUserService;
 import com.family.finance.household.dto.UpdateMemberRequest;
+import com.family.finance.household.mapper.HouseholdMapper;
 import com.family.finance.household.service.MemberService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,7 +23,9 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class MemberServiceTest {
     @Mock AppUserMapper userMapper;
+    @Mock HouseholdMapper householdMapper;
     @Mock CurrentUserService currentUserService;
+    @Mock AuditLogService auditLogService;
     @InjectMocks MemberService memberService;
 
     @Test
@@ -36,5 +40,6 @@ class MemberServiceTest {
                 .isInstanceOf(ApiException.class)
                 .hasMessage("至少需要保留一名活跃家长");
         verify(userMapper, never()).updateById(any(AppUser.class));
+        verify(householdMapper).selectForUpdateById(9L);
     }
 }

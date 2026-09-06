@@ -14,8 +14,11 @@ describe('application routes', () => {
       '/onboarding',
       '/dashboard',
       '/entries',
+      '/budgets',
       '/members',
       '/categories',
+      '/recurring',
+      '/audit-logs',
       '/profile',
       '/forbidden',
     ])

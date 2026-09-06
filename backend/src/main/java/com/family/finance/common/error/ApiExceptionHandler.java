@@ -4,6 +4,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -38,6 +42,15 @@ public class ApiExceptionHandler {
                 .forEach(error -> fieldErrors.putIfAbsent(error.getField(), error.getDefaultMessage()));
         return ResponseEntity.badRequest().body(
                 new ApiErrorResponse("VALIDATION_ERROR", "请求参数校验失败", fieldErrors));
+    }
+
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class,
+            HttpMessageNotReadableException.class,
+            ConstraintViolationException.class})
+    public ResponseEntity<ApiErrorResponse> handleInvalidArgument(Exception exception) {
+        return ResponseEntity.badRequest()
+                .body(new ApiErrorResponse("INVALID_ARGUMENT", "请求参数格式不正确"));
     }
 
     @ExceptionHandler(Exception.class)

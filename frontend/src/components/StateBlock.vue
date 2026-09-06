@@ -4,7 +4,7 @@ const emit = defineEmits<{ action: [] }>()
 </script>
 
 <template>
-  <div v-if="loading" class="state-block loading-state" aria-live="polite">
+  <div v-if="loading" class="state-block loading-state" aria-live="polite" role="status" :aria-label="title">
     <span class="skeleton-line wide" /><span class="skeleton-line" /><span class="skeleton-line short" />
   </div>
   <div v-else class="state-block">

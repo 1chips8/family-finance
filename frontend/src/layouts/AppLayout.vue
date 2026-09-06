@@ -2,17 +2,23 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { WalletCards, LayoutDashboard, ReceiptText, UsersRound, Tags, UserRound, Plus } from 'lucide-vue-next'
+import { LayoutDashboard, ReceiptText, UsersRound, WalletCards, Tags, UserRound, Repeat2, ScrollText, Plus, MoreHorizontal } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const displayName = computed(() => auth.user?.displayName || '家庭成员')
 const navItems = [
-  { path: '/dashboard', label: '概览', icon: LayoutDashboard },
-  { path: '/entries', label: '收支明细', icon: ReceiptText },
-  { path: '/members', label: '家庭成员', icon: UsersRound, parentOnly: false },
-  { path: '/categories', label: '收支分类', icon: Tags, parentOnly: false },
+  { path: '/dashboard', label: '月报', icon: LayoutDashboard },
+  { path: '/entries', label: '流水', icon: ReceiptText },
+  { path: '/budgets', label: '预算', icon: WalletCards },
+  { path: '/members', label: '家庭', icon: UsersRound },
+]
+const moreItems = [
+  { path: '/categories', label: '分类', icon: Tags },
+  { path: '/recurring', label: '周期流水', icon: Repeat2 },
+  { path: '/audit-logs', label: '操作日志', icon: ScrollText, parentOnly: true },
+  { path: '/profile', label: '个人资料', icon: UserRound },
 ]
 async function logout() { await auth.logout(); await router.push('/login') }
 </script>
@@ -25,6 +31,10 @@ async function logout() { await auth.logout(); await router.push('/login') }
         <RouterLink v-for="item in navItems" :key="item.path" :to="item.path" :class="{ active: route.path === item.path }">
           <component :is="item.icon" :size="16" :stroke-width="2.2" />{{ item.label }}
         </RouterLink>
+        <el-dropdown class="more-nav" trigger="click">
+          <button class="more-button" aria-label="打开更多导航"><MoreHorizontal :size="17" />更多</button>
+          <template #dropdown><el-dropdown-menu><el-dropdown-item v-for="item in moreItems.filter((entry) => !entry.parentOnly || auth.isParent)" :key="item.path" @click="router.push(item.path)"><component :is="item.icon" :size="15" />{{ item.label }}</el-dropdown-item></el-dropdown-menu></template>
+        </el-dropdown>
       </nav>
       <div class="header-actions">
         <RouterLink class="primary-button compact" to="/entries?new=1"><Plus :size="17" />记一笔</RouterLink>
@@ -40,5 +50,8 @@ async function logout() { await auth.logout(); await router.push('/login') }
       </div>
     </header>
     <main class="app-content"><RouterView /></main>
+    <nav class="mobile-bottom-nav" aria-label="移动端主导航">
+      <RouterLink v-for="item in navItems" :key="item.path" :to="item.path" :class="{ active: route.path === item.path }"><component :is="item.icon" :size="18" /><span>{{ item.label }}</span></RouterLink>
+    </nav>
   </div>
 </template>

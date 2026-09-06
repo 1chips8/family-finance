@@ -3,6 +3,7 @@ package com.family.finance.household.service;
 import com.family.finance.auth.domain.AppUser;
 import com.family.finance.auth.domain.Role;
 import com.family.finance.auth.mapper.AppUserMapper;
+import com.family.finance.audit.service.AuditLogService;
 import com.family.finance.common.error.ApiException;
 import com.family.finance.common.security.CurrentUser;
 import com.family.finance.common.security.CurrentUserService;
@@ -24,12 +25,14 @@ public class HouseholdService {
     private final HouseholdMapper householdMapper;
     private final AppUserMapper userMapper;
     private final CurrentUserService currentUserService;
+    private final AuditLogService auditLogService;
 
     public HouseholdService(HouseholdMapper householdMapper, AppUserMapper userMapper,
-                            CurrentUserService currentUserService) {
+                            CurrentUserService currentUserService, AuditLogService auditLogService) {
         this.householdMapper = householdMapper;
         this.userMapper = userMapper;
         this.currentUserService = currentUserService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -48,8 +51,11 @@ public class HouseholdService {
         user.setMemberNo("M001");
         user.setRole(Role.PARENT);
         userMapper.updateById(user);
-        return HouseholdResponse.from(household, new CurrentUser(current.id(), current.username(), current.displayName(),
-                household.getId(), "M001", Role.PARENT, current.status()));
+        CurrentUser householdUser = new CurrentUser(current.id(), current.username(), current.displayName(),
+                household.getId(), "M001", Role.PARENT, current.status());
+        auditLogService.record(householdUser, "HOUSEHOLD_CREATE", "HOUSEHOLD", household.getId(),
+                "创建家庭 " + household.getName());
+        return HouseholdResponse.from(household, householdUser);
     }
 
     @Transactional
@@ -71,8 +77,11 @@ public class HouseholdService {
         user.setMemberNo(memberNo);
         user.setRole(Role.MEMBER);
         userMapper.updateById(user);
-        return HouseholdResponse.from(household, new CurrentUser(current.id(), current.username(), current.displayName(),
-                household.getId(), memberNo, Role.MEMBER, current.status()));
+        CurrentUser householdUser = new CurrentUser(current.id(), current.username(), current.displayName(),
+                household.getId(), memberNo, Role.MEMBER, current.status());
+        auditLogService.record(householdUser, "HOUSEHOLD_JOIN", "HOUSEHOLD", household.getId(),
+                "加入家庭 " + household.getName());
+        return HouseholdResponse.from(household, householdUser);
     }
 
     public HouseholdResponse current() {
@@ -88,6 +97,7 @@ public class HouseholdService {
         Household household = householdMapper.selectForUpdateById(user.householdId());
         household.setInviteCode(uniqueInviteCode());
         householdMapper.updateById(household);
+        auditLogService.record(user, "INVITE_ROTATE", "HOUSEHOLD", household.getId(), "重置家庭邀请码");
         return HouseholdResponse.from(household, user);
     }
 

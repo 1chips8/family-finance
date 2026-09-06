@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowUpRight, ArrowDownRight, Wallet, Plus, TrendingUp } from 'lucide-vue-next'
+import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import TrendChart from '../components/TrendChart.vue'
 import AmountText from '../components/AmountText.vue'
@@ -54,6 +54,28 @@ const rangeLabel = computed(() => displayedRange.value
   ? `${rangeLabels[rangeKey.value]} · ${displayedRange.value.from} 至 ${displayedRange.value.to}`
   : rangeLabels.custom)
 const todayLabel = computed(() => formatDate(new Date()))
+const reportMonth = computed(() => dashboard.value?.to?.slice(0, 7) || todayLabel.value.slice(0, 7))
+const savingsLabel = computed(() => {
+  const value = dashboard.value?.savingsRate
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '暂无收入，无法计算'
+  const rate = Number(value) * 100
+  return `${rate.toFixed(1)}% 储蓄率`
+})
+function comparisonText(value: Money | null | undefined, positiveIsGood = true) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '暂无上期数据'
+  const number = Number(value)
+  const percent = number * 100
+  return `${number >= 0 ? '↑' : '↓'} ${Math.abs(percent).toFixed(1)}%${positiveIsGood ? '' : '（关注）'}`
+}
+function comparisonRate(kind: 'income' | 'expense' | 'balance') {
+  const comparison = dashboard.value?.comparison
+  const explicit = comparison?.[`${kind}ChangeRate` as keyof typeof comparison] as Money | null | undefined
+  return explicit ?? comparison?.[kind]
+}
+function usagePercent(value: Money | null | undefined) {
+  const number = Number(value)
+  return Number.isFinite(number) ? number * 100 : 0
+}
 
 const format = (value: Money) => {
   const number = Number(value)
@@ -107,8 +129,8 @@ onMounted(() => load(getPresetRange('month')))
 </script>
 
 <template>
-  <div class="page-wrap dashboard-page">
-    <PageHeader title="今天，也看清一点" :subtitle="`${auth.user?.displayName || '你好'}，这是你的家庭财务概览。`"><button class="primary-button" @click="router.push('/entries?new=1')"><Plus :size="17" />记一笔</button></PageHeader>
+  <div class="page-wrap dashboard-page monthly-report">
+    <div class="report-hero"><aside class="month-rail" aria-label="月报月份"><span>家庭月报</span><strong>{{ reportMonth }}</strong></aside><div class="report-lead"><PageHeader title="这个月，家庭过得怎样？" :subtitle="`${auth.user?.displayName || '你好'}，这是你们共同的财务记录。`" /><div class="report-signals"><span>结余是收入减去支出</span><strong data-test="savings-rate">{{ savingsLabel }}</strong></div></div></div>
     <section class="dashboard-toolbar surface" aria-label="统计时间范围">
       <div class="dashboard-range-copy"><span>统计范围</span><strong>{{ rangeLabel }}</strong></div>
       <div class="range-controls" role="group" aria-label="选择统计时间范围">
@@ -125,10 +147,12 @@ onMounted(() => load(getPresetRange('month')))
     <StateBlock v-else-if="error" title="概览暂时无法加载" :description="error" action-text="重新加载" @action="load(displayedRange || getPresetRange('month'))" />
     <template v-else-if="dashboard">
       <section class="kpi-grid">
-        <article class="kpi-card income-card"><div class="kpi-label"><span class="kpi-icon"><ArrowUpRight :size="18" /></span>本期收入</div><strong>¥{{ format(dashboard.totals.income) }}</strong><span class="kpi-foot">{{ rangeLabel }}</span></article>
-        <article class="kpi-card expense-card"><div class="kpi-label"><span class="kpi-icon"><ArrowDownRight :size="18" /></span>本期支出</div><strong>¥{{ format(dashboard.totals.expense) }}</strong><span class="kpi-foot">{{ rangeLabel }}</span></article>
-        <article class="kpi-card balance-card"><div class="kpi-label"><span class="kpi-icon"><Wallet :size="18" /></span>本期结余</div><strong>¥{{ format(dashboard.totals.balance) }}</strong><span class="kpi-foot">收入减去支出 · {{ rangeLabel }}</span></article>
+        <article class="kpi-card income-card"><div class="kpi-label"><span class="kpi-icon"><ArrowUpRight :size="18" /></span>本期收入</div><strong>¥{{ format(dashboard.totals.income) }}</strong><span class="kpi-foot">{{ rangeLabel }} · 环比 {{ comparisonText(comparisonRate('income')) }}</span></article>
+        <article class="kpi-card expense-card"><div class="kpi-label"><span class="kpi-icon"><ArrowDownRight :size="18" /></span>本期支出</div><strong>¥{{ format(dashboard.totals.expense) }}</strong><span class="kpi-foot">{{ rangeLabel }} · 环比 {{ comparisonText(comparisonRate('expense'), false) }}</span></article>
+        <article class="kpi-card balance-card"><div class="kpi-label"><span class="kpi-icon"><Wallet :size="18" /></span>本期结余</div><strong>¥{{ format(dashboard.totals.balance) }}</strong><span class="kpi-foot">收入减去支出 · 环比 {{ comparisonText(comparisonRate('balance')) }}</span></article>
       </section>
+      <section v-if="dashboard.budget" class="surface report-budget" data-test="report-budget"><div class="surface-heading"><div><h2>预算执行</h2><p>本月支出和家庭额度放在同一条线上。</p></div><span class="budget-status-label">{{ dashboard.budget.total?.status === 'OVER' ? '已超支' : dashboard.budget.total?.status === 'WARNING' ? '接近上限' : '正常' }}</span></div><div v-if="dashboard.budget.total" class="report-budget-line"><strong>家庭总预算</strong><span>已用 ¥{{ format(dashboard.budget.total.spent) }} / ¥{{ format(dashboard.budget.total.budget) }}</span><b>{{ usagePercent(dashboard.budget.total.usageRate).toFixed(1) }}%</b></div><div class="report-budget-track"><i :style="{ width: `${Math.min(100, usagePercent(dashboard.budget.total?.usageRate))}%` }" /></div></section>
+      <section v-if="dashboard.anomalies?.length" class="surface anomaly-panel" aria-labelledby="anomaly-title"><div class="surface-heading"><div><h2 id="anomaly-title">值得看一眼</h2><p>这些分类比过去三个月的平均支出明显增加。</p></div></div><ul class="anomaly-list"><li v-for="anomaly in dashboard.anomalies" :key="anomaly.categoryId"><strong>{{ anomaly.categoryName }}</strong><span>{{ anomaly.message || `本月 ¥${format(anomaly.currentAmount)}，约为过去均值的 ${Number(anomaly.ratio).toFixed(1)} 倍` }}</span></li></ul></section>
       <section class="dashboard-grid">
         <article class="surface trend-panel"><div class="surface-heading"><div><h2>近 12 个月</h2><p>收入和支出的节奏</p></div><TrendingUp :size="20" class="heading-icon" /></div><TrendChart v-if="dashboard.trend.length" :points="dashboard.trend" /><div v-else class="chart-empty">还没有足够的记录形成趋势。</div></article>
         <article class="surface composition-panel"><div class="surface-heading composition-heading"><div><h2>{{ compositionType === 'EXPENSE' ? '支出构成' : '收入构成' }}</h2><p>{{ compositionType === 'EXPENSE' ? '钱主要去了哪里' : '家庭收入来自哪里' }}</p></div><div class="type-toggle composition-switch" role="tablist" aria-label="收支构成类型"><button type="button" data-composition="expense" :class="{ active: compositionType === 'EXPENSE' }" :aria-selected="compositionType === 'EXPENSE'" @click="compositionType = 'EXPENSE'">支出</button><button type="button" data-composition="income" :class="{ active: compositionType === 'INCOME' }" :aria-selected="compositionType === 'INCOME'" @click="compositionType = 'INCOME'">收入</button></div></div><div v-if="activeComposition.length" class="composition-list"><div v-for="item in activeComposition.slice(0, 5)" :key="item.categoryId" class="composition-row"><span class="composition-name">{{ item.categoryName }}</span><strong>¥{{ format(item.amount) }}</strong><span class="composition-percent">{{ compositionPercentLabel(item.amount) }}</span><div class="composition-bar"><i :class="compositionType.toLowerCase()" :style="{ width: `${Math.min(100, compositionPercent(item.amount))}%` }" /></div></div></div><div v-else class="chart-empty">当前范围还没有{{ compositionType === 'EXPENSE' ? '支出' : '收入' }}记录。</div></article>

@@ -4,6 +4,7 @@ import com.family.finance.auth.domain.AppUser;
 import com.family.finance.auth.domain.Role;
 import com.family.finance.auth.domain.UserStatus;
 import com.family.finance.auth.mapper.AppUserMapper;
+import com.family.finance.audit.service.AuditLogService;
 import com.family.finance.category.domain.CategoryStatus;
 import com.family.finance.category.domain.CategoryType;
 import com.family.finance.category.domain.FinanceCategory;
@@ -35,6 +36,7 @@ class LedgerServiceTest {
     @Mock CategoryMapper categoryMapper;
     @Mock CategoryService categoryService;
     @Mock CurrentUserService currentUserService;
+    @Mock AuditLogService auditLogService;
     @InjectMocks LedgerService ledgerService;
 
     @Test
