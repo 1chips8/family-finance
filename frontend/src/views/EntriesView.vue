@@ -50,9 +50,12 @@ async function remove(entry: Entry) {
 }
 async function exportCsv() {
   try {
-    const blob = await entryApi.exportCsv({ ...filters })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = '家庭流水.csv'; anchor.click(); URL.revokeObjectURL(url)
+    const anchor = document.createElement('a')
+    anchor.href = entryApi.exportUrl({ ...filters })
+    anchor.download = '家庭流水.csv'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
     ElMessage.success('流水已导出')
   } catch (e) { ElMessage.error(errorMessage(e, '导出失败')) }
 }

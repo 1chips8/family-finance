@@ -36,6 +36,15 @@ export interface EntryImportPreview {
   rows: EntryImportRow[]
 }
 
+export function entryExportUrl(params: EntryExportParams = {}) {
+  const query = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== '' && value !== undefined && value !== null) query.set(key, String(value))
+  })
+  const suffix = query.toString()
+  return `/api/entries/export${suffix ? `?${suffix}` : ''}`
+}
+
 export const entryApi = {
   async list(params: Record<string, unknown>) {
     const response = await apiClient.get<ApiResponse<EntryPage>>('/entries', { params })
@@ -52,10 +61,7 @@ export const entryApi = {
   async remove(id: number) {
     await apiClient.delete(`/entries/${id}`, writeConfig())
   },
-  async exportCsv(params: EntryExportParams = {}) {
-    const response = await apiClient.get<Blob>('/entries/export', { params, responseType: 'blob' })
-    return response.data
-  },
+  exportUrl: entryExportUrl,
   async importPreview(csv: File | string) {
     const content = typeof csv === 'string' ? csv : await csv.text()
     const response = await apiClient.post<ApiResponse<EntryImportPreview>>('/entries/import/preview', { csv: content }, writeConfig())
