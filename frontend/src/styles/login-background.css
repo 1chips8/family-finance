@@ -1,0 +1,38 @@
+/* The generated artwork stays decorative; form controls remain real HTML. */
+.auth-layout--illustrated {
+  grid-template-rows: 1fr auto;
+  background: #eef1f7 url('/images/login-ledger-paper-v1.png') center / cover no-repeat;
+}
+
+.auth-layout--illustrated::before {
+  background: linear-gradient(90deg, rgb(238 241 247 / 12%), rgb(238 241 247 / 30%) 38%, transparent 85%);
+}
+
+.auth-layout--illustrated .auth-orbit { display: none; }
+
+.auth-layout--illustrated .login-card { position: relative; padding-block: 36px; }
+.auth-layout--illustrated .auth-card-copy p { color: #52617c; }
+.auth-layout--illustrated .form-stack {
+  border: 1px solid rgb(31 76 150 / 15%);
+  border-top: 3px solid var(--color-cinnabar);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 97%);
+  box-shadow: 0 22px 64px rgb(31 55 93 / 12%), 6px 6px 0 rgb(255 255 255 / 55%);
+}
+
+.auth-layout--illustrated .auth-footer {
+  justify-self: start;
+  padding: 8px 12px;
+  border-left: 2px solid var(--color-cinnabar);
+  background: rgb(248 250 253 / 94%);
+  color: #52617c;
+}
+
+@media (max-width: 680px) {
+  .auth-layout--illustrated { background-position: 60% bottom; }
+  .auth-layout--illustrated::before { background: rgb(238 241 247 / 65%); }
+  .auth-layout--illustrated .login-card { margin: 5vh auto; padding-block: 0; }
+  .auth-layout--illustrated .auth-card-copy { padding: 16px 0; }
+  .auth-layout--illustrated .auth-card h1 { font-size: clamp(36px, 10vw, 48px); }
+  .auth-layout--illustrated .form-stack { background: #fff; }
+}

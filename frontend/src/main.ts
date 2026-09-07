@@ -32,6 +32,7 @@ import './styles/tokens.css'
 import './styles/main.css'
 import './styles/monthly-report.css'
 import './styles/data-pages.css'
+import './styles/login-background.css'
 
 const app = createApp(App).use(createPinia()).use(router)
 app.component('ElDatePicker', ElDatePicker)
