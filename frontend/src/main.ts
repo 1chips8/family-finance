@@ -35,6 +35,7 @@ import './styles/data-pages.css'
 import './styles/login-background.css'
 
 const app = createApp(App).use(createPinia()).use(router)
+// 只注册模板实际使用的 Element Plus 组件，避免整库全局注册。
 app.component('ElDatePicker', ElDatePicker)
 app.component('ElDialog', ElDialog)
 app.component('ElDropdown', ElDropdown)

@@ -15,22 +15,69 @@ import { useAuthStore } from '../stores/auth'
 import type { Category, Entry, Member } from '../types/domain'
 import EntryImportDialog from '../components/EntryImportDialog.vue'
 
-const route = useRoute(), router = useRouter(), auth = useAuthStore()
-const entries = ref<Entry[]>([]), members = ref<Member[]>([]), categories = ref<Category[]>([]), total = ref(0), loading = ref(true), error = ref(''), drawer = ref(false), importOpen = ref(false), saving = ref(false), editing = ref<Entry | null>(null)
-const filters = reactive({ type: '', categoryId: '', memberId: '', from: '', to: '' }), page = ref(1), pageSize = 20
+const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+
+const entries = ref<Entry[]>([])
+const members = ref<Member[]>([])
+const categories = ref<Category[]>([])
+const total = ref(0)
+const loading = ref(true)
+const error = ref('')
+const drawer = ref(false)
+const importOpen = ref(false)
+const saving = ref(false)
+const editing = ref<Entry | null>(null)
+
+const filters = reactive({ type: '', categoryId: '', memberId: '', from: '', to: '' })
+const page = ref(1)
+const pageSize = 20
 const usableCategories = computed(() => categories.value.filter((category) => category.status === 'ACTIVE'))
 const filteredCategoryOptions = computed(() => filters.type ? usableCategories.value.filter((category) => category.type === filters.type) : usableCategories.value)
+
 async function load() {
-  loading.value = true; error.value = ''
+  loading.value = true
+  error.value = ''
   try {
-    const result = await entryApi.list({ ...filters, page: page.value, pageSize }); entries.value = result.items; total.value = result.total
-  } catch (e) { error.value = errorMessage(e); if (errorStatus(e) === 401) { await auth.logout(); await router.push('/login') } }
-  finally { loading.value = false }
+    const result = await entryApi.list({ ...filters, page: page.value, pageSize })
+    entries.value = result.items
+    total.value = result.total
+  } catch (e) {
+    error.value = errorMessage(e)
+    if (errorStatus(e) === 401) {
+      await auth.logout()
+      await router.push('/login')
+    }
+  } finally {
+    loading.value = false
+  }
 }
-async function loadOptions() { try { [members.value, categories.value] = await Promise.all([memberApi.list(), categoryApi.list(false)]) } catch (e) { error.value = errorMessage(e) } }
-function resetFilters() { Object.assign(filters, { type: '', categoryId: '', memberId: '', from: '', to: '' }); page.value = 1; load() }
-function openCreate() { editing.value = null; drawer.value = true }
-function openEdit(entry: Entry) { editing.value = entry; drawer.value = true }
+
+async function loadOptions() {
+  try {
+    [members.value, categories.value] = await Promise.all([memberApi.list(), categoryApi.list(false)])
+  } catch (e) {
+    error.value = errorMessage(e)
+  }
+}
+
+function resetFilters() {
+  Object.assign(filters, { type: '', categoryId: '', memberId: '', from: '', to: '' })
+  page.value = 1
+  void load()
+}
+
+function openCreate() {
+  editing.value = null
+  drawer.value = true
+}
+
+function openEdit(entry: Entry) {
+  editing.value = entry
+  drawer.value = true
+}
+
 function clearNewQuery() {
   if (route.query.new === '1') {
     const query = { ...route.query }
@@ -38,18 +85,45 @@ function clearNewQuery() {
     void router.replace({ query })
   }
 }
-function closeDrawer() { drawer.value = false; clearNewQuery() }
+
+function closeDrawer() {
+  drawer.value = false
+  clearNewQuery()
+}
+
 async function save(payload: EntryPayload) {
   saving.value = true
-  try { if (editing.value) await entryApi.update(editing.value.id, payload); else await entryApi.create(payload); ElMessage.success(editing.value ? '流水已更新' : '流水已记录'); drawer.value = false; await load() }
-  catch (e) { ElMessage.error(errorMessage(e, '保存失败，请检查填写内容')) }
-  finally { saving.value = false }
+  try {
+    if (editing.value) await entryApi.update(editing.value.id, payload)
+    else await entryApi.create(payload)
+    ElMessage.success(editing.value ? '流水已更新' : '流水已记录')
+    drawer.value = false
+    await load()
+  } catch (e) {
+    ElMessage.error(errorMessage(e, '保存失败，请检查填写内容'))
+  } finally {
+    saving.value = false
+  }
 }
+
 async function remove(entry: Entry) {
-  try { await ElMessageBox.confirm(`删除“${entry.categoryName} · ¥${entry.amount}”后，它将不再参与列表和统计。`, '删除这笔流水？', { confirmButtonText: '确认删除', cancelButtonText: '保留记录', type: 'warning' }); await entryApi.remove(entry.id); ElMessage.success('流水已删除'); await load() } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error(errorMessage(e, '删除失败')) }
+  try {
+    await ElMessageBox.confirm(
+      `删除“${entry.categoryName} · ¥${entry.amount}”后，它将不再参与列表和统计。`,
+      '删除这笔流水？',
+      { confirmButtonText: '确认删除', cancelButtonText: '保留记录', type: 'warning' },
+    )
+    await entryApi.remove(entry.id)
+    ElMessage.success('流水已删除')
+    await load()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(errorMessage(e, '删除失败'))
+  }
 }
+
 async function exportCsv() {
   try {
+    // 使用临时链接触发浏览器下载，避免把完整 CSV 内容读入前端内存。
     const anchor = document.createElement('a')
     anchor.href = entryApi.exportUrl({ ...filters })
     anchor.download = '家庭流水.csv'
@@ -57,9 +131,14 @@ async function exportCsv() {
     anchor.click()
     anchor.remove()
     ElMessage.success('流水已导出')
-  } catch (e) { ElMessage.error(errorMessage(e, '导出失败')) }
+  } catch (e) {
+    ElMessage.error(errorMessage(e, '导出失败'))
+  }
 }
-onMounted(async () => { await Promise.all([loadOptions(), load()]) })
+
+onMounted(async () => {
+  await Promise.all([loadOptions(), load()])
+})
 watch(() => route.query.new, (value) => { if (value === '1') openCreate() }, { immediate: true })
 watch(drawer, (open) => { if (!open) clearNewQuery() })
 </script>

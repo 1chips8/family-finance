@@ -25,6 +25,12 @@ import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * 家庭月度预算服务。
+ *
+ * <p>同一张表同时保存家庭总预算和分类预算：category_id 为空表示总预算，
+ * 非空表示某个支出分类的预算。预算读取对家庭成员开放，修改仅允许家长。</p>
+ */
 @Service
 public class BudgetService {
     private static final int MONEY_SCALE = 2;
@@ -46,7 +52,7 @@ public class BudgetService {
         this.auditLogService = auditLogService;
     }
 
-    /** Constructor kept for focused service tests and lightweight callers. */
+    /** 供聚焦的服务单元测试使用，业务运行时由上面的完整构造器注入审计服务。 */
     public BudgetService(MonthlyBudgetMapper budgetMapper, CategoryService categoryService,
                          CurrentUserService currentUserService, JdbcTemplate jdbcTemplate) {
         this(budgetMapper, categoryService, currentUserService, jdbcTemplate, null);
@@ -65,6 +71,7 @@ public class BudgetService {
                 .orderByAsc("category_id"));
         if (budgets == null) budgets = List.of();
 
+        // category_id 为空的记录是家庭总预算，不应混入分类预算列表。
         MonthlyBudget total = budgets.stream().filter(item -> item.getCategoryId() == null).findFirst().orElse(null);
         BigDecimal totalBudget = total == null ? money(BigDecimal.ZERO) : money(total.getAmount());
         BigDecimal totalSpent = spent(user.householdId(), selected.atDay(1), selected.atEndOfMonth(), null);
@@ -122,6 +129,7 @@ public class BudgetService {
     }
 
     private BudgetOverviewResponse.BudgetItem categoryBudget(Long householdId, YearMonth month, MonthlyBudget budget) {
+        // 已停用分类仍允许展示历史预算，但新增/修改预算时只接受启用分类。
         FinanceCategory category = categoryService.requireUsable(budget.getCategoryId(), householdId, CategoryType.EXPENSE, true);
         BigDecimal configured = money(budget.getAmount());
         BigDecimal spent = spent(householdId, month.atDay(1), month.atEndOfMonth(), budget.getCategoryId());
@@ -185,6 +193,7 @@ public class BudgetService {
     private BudgetStatus status(BigDecimal spent, BigDecimal budget) {
         if (budget.signum() == 0) return BudgetStatus.NORMAL;
         BigDecimal ratio = spent.divide(budget, 6, RoundingMode.HALF_UP);
+        // 达到 80% 提醒，严格超过 100% 才标记为超支。
         return ratio.compareTo(BigDecimal.ONE) > 0 ? BudgetStatus.OVER
                 : ratio.compareTo(new BigDecimal("0.80")) >= 0 ? BudgetStatus.WARNING : BudgetStatus.NORMAL;
     }

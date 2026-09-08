@@ -6,6 +6,7 @@ import com.family.finance.audit.service.AuditLogService;
 import com.family.finance.auth.domain.AppUser;
 import com.family.finance.auth.domain.UserStatus;
 import com.family.finance.auth.mapper.AppUserMapper;
+import com.family.finance.category.domain.CategoryType;
 import com.family.finance.category.domain.FinanceCategory;
 import com.family.finance.category.mapper.CategoryMapper;
 import com.family.finance.category.service.CategoryService;
@@ -14,6 +15,7 @@ import com.family.finance.common.security.CurrentUser;
 import com.family.finance.common.security.CurrentUserService;
 import com.family.finance.common.web.PageResponse;
 import com.family.finance.ledger.domain.LedgerEntry;
+import com.family.finance.ledger.domain.LedgerType;
 import com.family.finance.ledger.dto.CreateEntryRequest;
 import com.family.finance.ledger.dto.EntryPageResponse;
 import com.family.finance.ledger.dto.EntryQuery;
@@ -29,6 +31,12 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 流水业务入口。
+ *
+ * <p>家庭范围和成员范围都在服务端追加到查询条件中：家长可以查看全家流水，
+ * 普通成员只能查看和维护自己的流水，不能依赖前端隐藏按钮来保证权限。</p>
+ */
 @Service
 public class LedgerService {
     private final LedgerEntryMapper entryMapper;
@@ -54,6 +62,7 @@ public class LedgerService {
         EntryQuery query = input.normalized();
         Page<LedgerEntry> page = new Page<>(query.page(), query.pageSize());
         QueryWrapper<LedgerEntry> wrapper = new QueryWrapper<>();
+        // household_id 是所有流水查询的第一层隔离条件，后续筛选不得绕过它。
         wrapper.eq("household_id", user.householdId());
         if (!user.isParent()) wrapper.eq("member_id", user.id());
         else if (query.memberId() != null) wrapper.eq("member_id", query.memberId());
@@ -78,7 +87,7 @@ public class LedgerService {
         CurrentUser user = currentUserService.requireHouseholdUser();
         EntryResponse response = createImported(user, request);
         auditLogService.record(user, "ENTRY_CREATE", "ENTRY", response.id(),
-                "新增" + (response.type() == com.family.finance.ledger.domain.LedgerType.INCOME ? "收入" : "支出")
+                "新增" + (response.type() == LedgerType.INCOME ? "收入" : "支出")
                         + "流水 ¥" + response.amount());
         return response;
     }
@@ -86,7 +95,7 @@ public class LedgerService {
     public EntryResponse createImported(CurrentUser user, CreateEntryRequest request) {
         AppUser member = resolveMember(request.memberId(), user, true);
         FinanceCategory category = categoryService.requireUsable(request.categoryId(), user.householdId(),
-                com.family.finance.category.domain.CategoryType.valueOf(request.type().name()), false);
+                CategoryType.valueOf(request.type().name()), false);
         validateDate(request.occurredOn());
         LedgerEntry entry = new LedgerEntry();
         entry.setHouseholdId(user.householdId());
@@ -107,7 +116,7 @@ public class LedgerService {
         LedgerEntry entry = target(id, user);
         AppUser member = resolveMember(request.memberId(), user, true);
         FinanceCategory category = categoryService.requireUsable(request.categoryId(), user.householdId(),
-                com.family.finance.category.domain.CategoryType.valueOf(request.type().name()),
+                CategoryType.valueOf(request.type().name()),
                 entry.getCategoryId().equals(request.categoryId()));
         validateDate(request.occurredOn());
         entry.setMemberId(member.getId());
@@ -134,6 +143,7 @@ public class LedgerService {
 
     private LedgerEntry target(Long id, CurrentUser user) {
         LedgerEntry entry = entryMapper.selectById(id);
+        // 对不存在和越权访问统一返回 404，避免泄露其他家庭或成员的流水是否存在。
         if (entry == null || !user.householdId().equals(entry.getHouseholdId())
                 || (!user.isParent() && !user.id().equals(entry.getMemberId()))) {
             throw new ApiException(HttpStatus.NOT_FOUND, "ENTRY_NOT_FOUND", "流水不存在或无权访问");
@@ -142,6 +152,7 @@ public class LedgerService {
     }
 
     private AppUser resolveMember(Long requestedId, CurrentUser user, boolean activeRequired) {
+        // 普通成员提交的 memberId 不可信，强制绑定为当前登录用户。
         Long memberId = user.isParent() ? requestedId : user.id();
         if (memberId == null) throw new ApiException(HttpStatus.BAD_REQUEST, "MEMBER_REQUIRED", "请选择归属成员");
         AppUser member = userMapper.selectById(memberId);

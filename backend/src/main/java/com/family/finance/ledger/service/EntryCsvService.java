@@ -27,6 +27,12 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 
+/**
+ * 流水 CSV 导入导出服务。
+ *
+ * <p>导入采用“预览—确认”两阶段流程：两次都执行完整解析和权限校验，
+ * 并用摘要确认用户提交的仍是刚刚预览过的内容。</p>
+ */
 @Service
 public class EntryCsvService {
     private static final List<String> HEADER = List.of("发生日期", "类型", "分类", "成员编号", "金额", "备注");
@@ -56,6 +62,7 @@ public class EntryCsvService {
     public EntryImportCommitResponse commit(EntryImportRequest request) {
         CurrentUser user = currentUserService.requireHouseholdUser();
         EntryImportPreviewResponse preview = parseAndValidate(request.csv(), user);
+        // 防止预览后文件被替换，避免用户确认的内容与最终写入内容不一致。
         if (!MessageDigest.isEqual(preview.checksum().getBytes(StandardCharsets.UTF_8),
                 request.checksum().getBytes(StandardCharsets.UTF_8))) {
             throw new ApiException(HttpStatus.CONFLICT, "CSV_CHANGED", "CSV 内容已变化，请重新预览");
@@ -75,6 +82,7 @@ public class EntryCsvService {
     public byte[] export(EntryQuery query) {
         currentUserService.requireHouseholdUser();
         StringBuilder csv = new StringBuilder("\uFEFF").append(CsvCodec.line(HEADER));
+        // 分页读取，避免一次导出把全部流水同时加载进内存。
         long page = 1;
         while (true) {
             EntryPageResponse result = ledgerService.list(new EntryQuery(query.from(), query.to(), query.type(),
@@ -105,6 +113,7 @@ public class EntryCsvService {
         }
         List<AppUser> members = userMapper.selectList(new QueryWrapper<AppUser>()
                 .eq("household_id", user.householdId()).eq("status", UserStatus.ACTIVE));
+        // 系统公共分类（household_id 为空）与当前家庭自定义分类都可以用于导入。
         List<FinanceCategory> categories = categoryMapper.selectList(new QueryWrapper<FinanceCategory>()
                 .and(w -> w.isNull("household_id").or().eq("household_id", user.householdId()))
                 .eq("status", CategoryStatus.ACTIVE));
@@ -132,6 +141,7 @@ public class EntryCsvService {
         if (matchingCategories.isEmpty()) errors.put("category", "找不到同类型的启用分类");
         else if (matchingCategories.size() > 1) errors.put("category", "存在同名分类，请先将分类名称改为唯一名称");
         String requestedMemberNo = value(row, 3).strip().toUpperCase();
+        // 普通成员只能解析到自己；CSV 中伪造其他成员编号不会改变归属人。
         AppUser member = user.isParent()
                 ? members.stream().filter(item -> Objects.equals(item.getMemberNo(), requestedMemberNo)).findFirst().orElse(null)
                 : members.stream().filter(item -> Objects.equals(item.getId(), user.id())).findFirst().orElse(null);

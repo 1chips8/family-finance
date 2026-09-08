@@ -16,6 +16,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+/**
+ * 每次已认证请求都重新确认账号仍处于启用状态。
+ * 这样管理员停用成员后，成员已有的 Session 会立即失效，无需等到自然过期。
+ */
 @Component
 public class InactiveSessionFilter extends OncePerRequestFilter {
     private final AppUserMapper userMapper;

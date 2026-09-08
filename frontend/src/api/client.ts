@@ -8,6 +8,7 @@ export const apiClient = axios.create({
 
 export const FORBIDDEN_EVENT = 'family-finance:forbidden'
 
+// API 层只广播权限失败，具体页面跳转由应用入口统一处理，避免请求模块依赖路由实例。
 apiClient.interceptors.response.use(
   (response: unknown) => response,
   (error: unknown) => {
@@ -23,6 +24,7 @@ export function setCsrfToken(token: string) {
 }
 
 export function writeConfig() {
+  // 登录接口返回的 Token 优先；刷新页面后可从同源 Cookie 恢复。
   return { headers: { 'X-XSRF-TOKEN': csrfToken || readCookie('XSRF-TOKEN') } }
 }
 

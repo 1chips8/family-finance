@@ -22,6 +22,7 @@ export const appRoutes: RouteRecordRaw[] = [
   { path: '/forbidden', component: () => import('../views/ForbiddenView.vue'), meta: { auth: true, household: true } },
 ]
 
+// 根据路由元信息复用认证布局和业务布局，避免每个页面重复声明外壳。
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -34,7 +35,9 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  // 首次导航先恢复 Session，后续导航由 store 的 initialized 标记直接跳过网络请求。
   await auth.restore()
+  // 校验顺序从登录态到家庭、角色逐层收紧，保证重定向目标始终可访问。
   if (to.meta.public && auth.authenticated) return auth.inHousehold ? '/dashboard' : '/onboarding'
   if (to.meta.auth && !auth.authenticated) return { path: '/login', query: { redirect: to.fullPath } }
   if (to.meta.household && !auth.inHousehold) return '/onboarding'

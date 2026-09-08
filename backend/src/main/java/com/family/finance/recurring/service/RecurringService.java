@@ -39,6 +39,12 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 周期流水模板及手动生成服务。
+ *
+ * <p>每个“模板 + 月份”最多生成一次流水。应用层先检查生成记录，数据库唯一约束
+ * 再处理并发请求；家长处理全家模板，普通成员只能处理自己的模板。</p>
+ */
 @Service
 public class RecurringService {
     private static final DateTimeFormatter MONTH_FORMAT = DateTimeFormatter.ofPattern("uuuu-MM")
@@ -153,6 +159,7 @@ public class RecurringService {
         int alreadyGenerated = 0;
         List<RecurringGenerationResponse.SkippedTemplate> skips = new java.util.ArrayList<>();
         for (RecurringTemplate template : templates) {
+            // 快速处理正常的重复点击；数据库唯一约束仍是并发下的最终保障。
             RecurringGeneration existing = generationMapper.selectOne(new QueryWrapper<RecurringGeneration>()
                     .eq("recurring_template_id", template.getId())
                     .eq("generated_month", generatedMonth));
@@ -174,6 +181,7 @@ public class RecurringService {
                 skips.add(new RecurringGenerationResponse.SkippedTemplate(template.getId(), "分类不可用：" + exception.getMessage()));
                 continue;
             }
+            // 29—31 日在短月份落到当月最后一天，保证生成结果仍属于目标月份。
             LocalDate occurredOn = month.atDay(Math.min(template.getDayOfMonth(), month.lengthOfMonth()));
             LedgerEntry entry = new LedgerEntry();
             entry.setHouseholdId(template.getHouseholdId());
@@ -194,6 +202,7 @@ public class RecurringService {
                 generationMapper.insert(generation);
                 generated++;
             } catch (DataIntegrityViolationException duplicate) {
+                // 并发请求已占用“模板 + 月份”时，撤销本请求刚插入的孤立流水。
                 if (entry.getId() != null) entryMapper.deleteById(entry.getId());
                 alreadyGenerated++;
             }
@@ -225,6 +234,7 @@ public class RecurringService {
     }
 
     private AppUser resolveMember(Long requestedId, CurrentUser user) {
+        // 普通成员不能借请求参数替其他成员创建模板。
         Long memberId = user.isParent() ? requestedId : user.id();
         if (memberId == null) throw new ApiException(HttpStatus.BAD_REQUEST, "MEMBER_REQUIRED", "请选择归属成员");
         AppUser member = userMapper.selectById(memberId);
@@ -243,6 +253,7 @@ public class RecurringService {
 
     private RecurringTemplate target(Long id, CurrentUser user) {
         RecurringTemplate template = templateMapper.selectById(id);
+        // 不区分“不存在”和“无权访问”，避免暴露其他家庭的模板标识。
         if (template == null || !user.householdId().equals(template.getHouseholdId())
                 || (!user.isParent() && !user.id().equals(template.getMemberId()))) {
             throw new ApiException(HttpStatus.NOT_FOUND, "RECURRING_TEMPLATE_NOT_FOUND", "周期模板不存在或无权访问");

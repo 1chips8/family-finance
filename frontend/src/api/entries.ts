@@ -61,6 +61,7 @@ export const entryApi = {
   async remove(id: number) {
     await apiClient.delete(`/entries/${id}`, writeConfig())
   },
+  // 导出交给浏览器原生下载，Session Cookie 会随同源 /api 请求自动携带。
   exportUrl: entryExportUrl,
   async importPreview(csv: File | string) {
     const content = typeof csv === 'string' ? csv : await csv.text()

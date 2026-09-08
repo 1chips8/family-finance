@@ -21,10 +21,14 @@ import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+/**
+ * 家庭仪表盘的统计口径集中在此处，所有聚合查询都必须携带 household_id。
+ * 家庭汇总数据对成员共享，但“最近流水”仍遵守家长看全家、成员只看自己的权限边界。
+ */
 @Service
 public class StatisticsService {
     private final JdbcTemplate jdbcTemplate;
@@ -44,11 +48,13 @@ public class StatisticsService {
         DashboardResponse.Totals totals = totals(user.householdId(), start, end);
         YearMonth lastMonth = YearMonth.from(end);
         YearMonth firstMonth = lastMonth.minusMonths(11);
+        // 环比使用紧邻当前区间、天数完全相同的上一时间段，而不是固定按自然月计算。
         long rangeDays = ChronoUnit.DAYS.between(start, end) + 1;
         LocalDate previousTo = start.minusDays(1);
         LocalDate previousFrom = previousTo.minusDays(rangeDays - 1);
         DashboardResponse.Totals previous = totals(user.householdId(), previousFrom, previousTo);
         DashboardResponse.Comparison comparison = comparison(totals, previous);
+        // 没有收入时储蓄率无定义，返回 null 让前端展示“无法计算”。
         BigDecimal savingsRate = totals.income().signum() == 0 ? null
                 : totals.balance().divide(totals.income(), 4, RoundingMode.HALF_UP);
         YearMonth reportMonth = YearMonth.from(end);
@@ -125,8 +131,10 @@ public class StatisticsService {
         List<DashboardResponse.Anomaly> result = new ArrayList<>();
         for (CurrentCategory item : current) {
             HistoryCategory baseline = byCategory.get(item.categoryId());
+            // 仅比较拥有完整三个月基线且本月支出至少 100 元的分类，减少小额波动噪音。
             if (item.amount().compareTo(new BigDecimal("100.00")) < 0 || baseline == null || baseline.months() < 3) continue;
             BigDecimal average = baseline.total().divide(BigDecimal.valueOf(3), 2, RoundingMode.HALF_UP);
+            // 超过近三个月均值 50% 才作为异常支出提示。
             if (average.signum() == 0 || item.amount().compareTo(average.multiply(new BigDecimal("1.5"))) <= 0) continue;
             result.add(new DashboardResponse.Anomaly(item.categoryId(), item.name(), item.amount(), average,
                     item.amount().divide(average, 4, RoundingMode.HALF_UP)));
@@ -203,6 +211,7 @@ public class StatisticsService {
     }
 
     private List<EntryResponse> recent(CurrentUser user, LocalDate from, LocalDate to) {
+        // 汇总图表是家庭级数据；最近流水需额外限制普通成员只能看到自己的明细。
         String sql = """
                 SELECT e.id, e.member_id, u.display_name, u.member_no, e.type, e.category_id, c.name,
                        e.amount, e.occurred_on, e.note, e.created_at

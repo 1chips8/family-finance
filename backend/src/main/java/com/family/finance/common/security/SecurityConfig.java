@@ -19,6 +19,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
+/**
+ * Web 安全入口：使用服务端 Session 保存登录态，并通过可由前端读取的 Cookie
+ * 下发 CSRF Token。业务权限仍由服务层的家庭/家长校验负责。
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -51,6 +55,7 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, DaoAuthenticationProvider authenticationProvider) throws Exception {
+        // 前端从 XSRF-TOKEN Cookie 读取值，并在写请求中回传 X-XSRF-TOKEN 请求头。
         CookieCsrfTokenRepository csrfRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         csrfRepository.setCookiePath("/");
         CsrfTokenRequestAttributeHandler csrfHandler = new CsrfTokenRequestAttributeHandler();
@@ -69,6 +74,7 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.disable())
                 .logout(logout -> logout.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        // 登录成功后更换 Session ID，避免会话固定攻击。
                         .sessionFixation(sessionFixation -> sessionFixation.changeSessionId()))
                 .addFilterAfter(inactiveSessionFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

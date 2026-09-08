@@ -11,6 +11,7 @@ public final class CsvCodec {
 
     public static List<List<String>> parse(String input) {
         if (input == null) return List.of();
+        // Excel 常在 UTF-8 CSV 开头写入 BOM，解析前先移除，避免污染首列表头。
         String text = input.startsWith("\uFEFF") ? input.substring(1) : input;
         List<List<String>> rows = new ArrayList<>();
         List<String> row = new ArrayList<>();
@@ -53,7 +54,7 @@ public final class CsvCodec {
         return fields.stream().map(CsvCodec::escape).reduce((left, right) -> left + "," + right).orElse("") + "\r\n";
     }
 
-    /** Prevent spreadsheet applications from evaluating imported text as formulas. */
+    /** 防止 Excel 等表格软件把导出的文本当作公式执行。 */
     public static String spreadsheetSafe(String raw) {
         if (raw == null || raw.isEmpty()) return raw == null ? "" : raw;
         char first = raw.charAt(0);

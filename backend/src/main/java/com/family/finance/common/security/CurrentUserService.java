@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+/** 将 Spring Security 身份转换为业务身份，并集中执行“已登录—已入户—家长”的分层校验。 */
 @Service
 public class CurrentUserService {
     private final AppUserMapper userMapper;
